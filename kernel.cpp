@@ -1,5 +1,3 @@
-#include <stdint.h>
-#include <stddef.h>
 #include "kernel.hpp"
 /* we use extern "C" here many times to avoid C++ linkage which does name mangling and to use C style linkage because i need to
 and to why not just c but don't feel like dealing with macros , name collisons and resource cleanup while i am already
@@ -62,11 +60,9 @@ extern "C" void kernel_main(void)
     // Wipe .bss in RAM to 0 so uninitialized globals start clean
     memset(__bss, 0, bss_size);
 
-    const char *s = "\n\nHello World!\n";
-    for (int i = 0; s[i] != '\0'; i++)
-    {
-        putchar(s[i]);
-    }
+    printf("\n--- Kuro Kernel Booted ---\n");
+    printf("BSS Size: %d bytes\n", bss_size);
+    printf("Status: %s\n", "SUCCESS");
 
     // Halt CPU until next interrupt (prevents 100% CPU usage in QEMU)
     for (;;) // infinite loop coz the kernel needs to keep running and not return anything at the end
