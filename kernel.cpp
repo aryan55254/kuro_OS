@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
-
+#include "kernel.hpp"
 /* we use extern "C" here many times to avoid C++ linkage which does name mangling and to use C style linkage because i need to
 and to why not just c but don't feel like dealing with macros , name collisons and resource cleanup while i am already
 having hard time dealing with buidling an OS itself
@@ -25,6 +25,35 @@ extern "C" void *memset(void *buf, char c, size_t n)
     return buf;
 }
 
+// Bridge to OpenSBI executes an ecall to request Machine-Mode hardware services.
+// Sets up registers a0-a7 according to the RISC-V SBI specification
+struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4, long arg5, long fid, long eid)
+{
+
+    register long a0 asm("a0") = arg0;
+    register long a1 asm("a1") = arg1;
+    register long a2 asm("a2") = arg2;
+    register long a3 asm("a3") = arg3;
+    register long a4 asm("a4") = arg4;
+    register long a5 asm("a5") = arg5;
+    register long a6 asm("a6") = fid;
+    register long a7 asm("a7") = eid;
+
+    asm volatile("ecall"                                                // hardware cpu instruction that swicthes cpu privilige levels
+                 : "+r"(a0), "+r"(a1)                                   // Outputs: a0 (error) & a1 (value) are updated by OpenSBI
+                 : "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6), "r"(a7) // Inputs: args passed to OpenSBI
+                 : "memory"                                             // Clobber: memory might be modified
+
+    );
+
+    return (struct sbiret){.error = a0, .value = a1};
+};
+
+void putchar(char ch)
+{
+    sbi_call(ch, 0, 0, 0, 0, 0, 0, 1);
+};
+
 extern "C" void kernel_main(void)
 {
     // Subtract start address from end address to get total BSS byte count
@@ -33,6 +62,12 @@ extern "C" void kernel_main(void)
     // Wipe .bss in RAM to 0 so uninitialized globals start clean
     memset(__bss, 0, bss_size);
 
+    const char *s = "\n\nHello World!\n";
+    for (int i = 0; s[i] != '\0'; i++)
+    {
+        putchar(s[i]);
+    }
+
     // Halt CPU until next interrupt (prevents 100% CPU usage in QEMU)
     for (;;) // infinite loop coz the kernel needs to keep running and not return anything at the end
     {
@@ -40,7 +75,7 @@ extern "C" void kernel_main(void)
     }
 }
 
-// Early boot assembly entry point (placed at 0x80200000 by kernel.ld)[cite: 6]
+// Early boot assembly entry point (placed at 0x80200000 by kernel.ld)
 // forces to put this fuction to section .text.boot to get it to exactly the address where the opensbi jumps to
 // "naked" forces the compiler to not run it like normal cpp function and not put in stack at start because the stack doesn't exists yet
 // both together basically make the asembly written inside run directly in cpu registers and program counter which then marks the stack top to sp register which is stack pointer and the shit from now can execute in stack for other os stuff
