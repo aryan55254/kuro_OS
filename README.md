@@ -31,6 +31,7 @@ kuro/
 5. Device drivers: Abstract hardware functionalities, such as disk read/write.
 6. File system: Manage files on disk.
 7. Command-line shell: User interface for humans.
+8. Memory management : Physical -> BitMap Frame Allocator | Heap -> Arena Allocator | Slab Allocator For Other Features 
 
 ## Phase 2 features
 
